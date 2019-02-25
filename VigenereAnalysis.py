@@ -1,6 +1,9 @@
-# re is a Python module for parsing a Regex (Character filter)
+# Copyright 2019, Leejae Karinja, All rights reserved.
+
+# re is used for parsing a Regex (Character filter)
 # copy is used to copy lists to prevent referenced object changes
-import re, copy
+# math is used for rounding up/down
+import re, copy, math
 
 """
 Reads a file and counts the occurrences of each character, A-Z
@@ -40,23 +43,26 @@ def analyzeFile(file):
     # Print the letter with its frequency (to 4 places) and occurrences
     print freq[letter][0] + ": Frequency(%.4f) Occurrences(%d)" % (freq[letter][1], counted[letter][1])
 
-  # Calculates an estimate for the length of the key
-  key_length = ((0.0265 * length) / ((0.065 - ioc) + (ioc - 0.0385) * length))
-
   # Prints the calculated IoC to 4 places
   print "\nIoC: %.4f" % ioc
+
+  # Calculates an estimate for the length of the key
+  key_length = calcKeyLength(contents, length, ioc)
+
   # Prints the estimated key length
-  print "\nEstimated Key Length: %.1f" % key_length
+  print "\nEstimated Key Length: %d" % key_length
 
   # Stores the shifts (letters) that are most likely in the original key
   shifts = list()
-  # Round the key length to an integer (it is the length of the key in letters)
-  rounded_key_length = int(round(key_length))
 
   # For each possible shift (letter) in the key
-  for shift in range(rounded_key_length):
+  for shift in range(key_length):
+    # Get a count of letter occurrences in a subset of ever 'shift'th letter
+    subset_count = countLetters(contents[shift::key_length])
+    # Calculate the dot product of letter frequency of the given subset and English
+    subset_freq = dotFrequency(calcFreq(subset_count, len(subset_count)))
     # Save the estimated shift (letter) that was used in the original key
-    shifts.append(dotFrequency(calcFreq(countLetters(contents[shift::rounded_key_length]), length / rounded_key_length)))
+    shifts.append(subset_freq)
 
   # Save the estimated key as a string
   key = ''.join([chr(char + 65) for char in shifts])
@@ -112,8 +118,59 @@ def calcFreq(counted, length):
   return freq
 
 """
+Calculates an estimate for the key length for the given ciphertext
+and returns the estimated length
+
+This method will replace the Friedman Test, which is the following
+((0.0265 * length) / ((0.065 - ioc) + (ioc - 0.0385) * length))
+and is used as a shot in the dark key length
+"""
+def calcKeyLength(ciphertext, length, ioc):
+  # Calculate a base approximation of the key length using the Friedman Test
+  friedman = ((0.0265 * length) / ((0.065 - ioc) + (ioc - 0.0385) * length))
+  # Print our initial approximate key length
+  print "\nFriedman Test Key Length Approximation: %.4f" % friedman
+
+  # If the Friedman Test results in a key that is at or less than 1
+  if friedman <= 1.0:
+    # They key is most likely a single character (or a Caesar Cipher)
+    return 1
+
+  # Stores average IoCs given estimated key lengths, higher is better
+  average_iocs = list()
+
+  # For possible key lengths between 1 and our Friedman approximation
+  for possible_length in range(1, int(math.ceil(friedman)) + 1):
+    # Stores the IoCs of given key length segments
+    iocs = list()
+
+    # For each group of every 'possible_length'th letter
+    for starting_shift in range(possible_length):
+      # Get every 'possible_length'th letter
+      subset = ciphertext[starting_shift::possible_length]
+      # Get a count of letter occurrences
+      count = countLetters(subset)
+      # Gets the total number of letters in each iterated group
+      length = reduce((lambda a, b: a + b), [pair[1] for pair in count])
+
+      # Stores the calculated IoC
+      ioc = 0.0
+
+      # For each letter in the alphabet
+      for letter in range(26):
+        # Update our calculation for the IoC
+        ioc += (count[letter][1] * (count[letter][1] - 1.)) / (length * (length - 1.))
+      # Add this IoC to the other IoCs of the same keyword length with different groupings
+      iocs.append(ioc)
+    # Average the IoCs of a given key length
+    average_iocs.append((reduce((lambda a, b: a + b), iocs) / possible_length))
+
+  # Return the estimated key length
+  return average_iocs.index(max(average_iocs)) + 1
+
+"""
 Calculates the dot product of a given letter frequency list
-and the scrawl of English to attempt to find the correct
+and the Scrawl of English to attempt to find the correct
 shift of letters, then returns the approximated shift
 """
 def dotFrequency(freq):
@@ -129,7 +186,7 @@ def dotFrequency(freq):
 
     # For each letter in the alphabet
     for letter in range(26):
-      # Add the product of the given letter frequency and the scrawl of english to the dot
+      # Add the product of the given letter frequency and the Scrawl of English to the dot
       dot += freq[letter][1] * scrawl[letter][1]
 
     # Store the dot product for the given shift
@@ -141,7 +198,7 @@ def dotFrequency(freq):
   return dots.index(max(dots))
 
 """
-Decrypts ciphertext that was encrypted with a Viginere cipher
+Decrypts ciphertext that was encrypted with a Vigenere Cipher
 using the specified key and returns the plaintext
 """
 def decrypt(ciphertext, key):
