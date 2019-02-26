@@ -47,7 +47,7 @@ def analyzeFile(file):
     print freq[letter][0] + ": Frequency(%.4f) Occurrences(%d)" % (freq[letter][1], counted[letter][1])
 
   # Stores the Index of Coincidence
-  ioc = (num / (denom * (denom - 1))) if denom > 0 else 0
+  ioc = (num / (denom * (denom - 1))) if (denom * (denom - 1)) > 0 else 0
 
   # Prints the calculated IoC to 4 places
   print "\nIoC: %.4f" % ioc
@@ -171,7 +171,7 @@ def calcKeyLength(ciphertext, length, ioc):
         denom += count[letter][1]
 
       # Stores the IoC in our list of IoCs
-      iocs.append((num / (denom * (denom - 1))) if denom > 0 else 0)
+      iocs.append((num / (denom * (denom - 1))) if (denom * (denom - 1)) > 0.0 else 0)
 
     # Average the IoCs of a given key length
     average_iocs.append((reduce((lambda a, b: a + b), iocs) / possible_length))
