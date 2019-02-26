@@ -33,15 +33,21 @@ def analyzeFile(file):
   # Calculates letter frequency given letter occurrences and total length
   freq = calcFreq(counted, length)
 
-  # Stores the Index of Coincidence
-  ioc = 0.0
-
+  # Numerator for calculating the IoC, as a sum of probabilities
+  num = 0.0
+  # Denominator for calculating the IoC, as a sum of occurrences
+  denom = 0.0
   # For each letter of the alphabet
   for letter in range(26):
-    # Add our calculated individual letter frequency to the IoC
-    ioc += (counted[letter][1] * (counted[letter][1] - 1.)) / (length * (length - 1.))
+    # Add our calculated frequency to the running total for the numerator
+    num += (counted[letter][1] * (counted[letter][1] - 1.))
+    # Add our calculated length to the running total for the denominator
+    denom += counted[letter][1]
     # Print the letter with its frequency (to 4 places) and occurrences
     print freq[letter][0] + ": Frequency(%.4f) Occurrences(%d)" % (freq[letter][1], counted[letter][1])
+
+  # Stores the Index of Coincidence
+  ioc = (num / (denom * (denom - 1))) if denom > 0 else 0
 
   # Prints the calculated IoC to 4 places
   print "\nIoC: %.4f" % ioc
@@ -153,15 +159,20 @@ def calcKeyLength(ciphertext, length, ioc):
       # Gets the total number of letters in each iterated group
       length = reduce((lambda a, b: a + b), [pair[1] for pair in count])
 
-      # Stores the calculated IoC
-      ioc = 0.0
-
-      # For each letter in the alphabet
+      # Numerator for calculating the IoC, as a sum of probabilities
+      num = 0.0
+      # Denominator for calculating the IoC, as a sum of occurrences
+      denom = 0.0
+      # For each letter of the alphabet
       for letter in range(26):
-        # Update our calculation for the IoC
-        ioc += (count[letter][1] * (count[letter][1] - 1.)) / (length * (length - 1.))
-      # Add this IoC to the other IoCs of the same keyword length with different groupings
-      iocs.append(ioc)
+        # Add our calculated frequency to the running total for the numerator
+        num += (count[letter][1] * (count[letter][1] - 1.))
+        # Add our calculated length to the running total for the denominator
+        denom += count[letter][1]
+
+      # Stores the IoC in our list of IoCs
+      iocs.append((num / (denom * (denom - 1))) if denom > 0 else 0)
+
     # Average the IoCs of a given key length
     average_iocs.append((reduce((lambda a, b: a + b), iocs) / possible_length))
 
