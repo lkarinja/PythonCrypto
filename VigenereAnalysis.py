@@ -24,7 +24,7 @@ def analyzeFile(file):
   # Makes 'contents' all uppercase
   contents = contents.upper()
   # Removes any non-A-Z character (regex of (?![A-Z]).)
-  contents = re.sub('(?![A-Z]).', '', contents)
+  contents = re.sub('(?![A-Z]).', '', contents).replace('\n', '')
   # Saves the length of the contents for when we calculate the IoC
   length = len(contents)
 
@@ -56,7 +56,7 @@ def analyzeFile(file):
   key_length = calcKeyLength(contents, length, ioc)
 
   # Prints the estimated key length
-  print "\nEstimated Key Length: %d" % key_length
+  print "\nEstimated Key Length: %d\n" % key_length
 
   # Stores the shifts (letters) that are most likely in the original key
   shifts = list()
@@ -142,11 +142,14 @@ def calcKeyLength(ciphertext, length, ioc):
     # They key is most likely a single character (or a Caesar Cipher)
     return 1
 
+  # Upper bound for a key length estimate
+  max_length_guess = int(math.ceil(friedman)) * 2
+
   # Stores average IoCs given estimated key lengths, higher is better
   average_iocs = list()
 
   # For possible key lengths between 1 and our Friedman approximation
-  for possible_length in range(1, int(math.ceil(friedman)) + 1):
+  for possible_length in range(1, max_length_guess if max_length_guess < length else length):
     # Stores the IoCs of given key length segments
     iocs = list()
 
@@ -205,8 +208,29 @@ def dotFrequency(freq):
     # Shifts the given letter frequency list over for the next dot product
     freq.append(freq.pop(0))
 
+  # Stores in decending order the index of the 'n'th greatest dot product
+  maxes = list()
+  # Stores the greatest to least dot product
+  vals = list()
+
+  # For each possible shift
+  for letter in range(26):
+    # Get the current closest match (max dot product)
+    max_val = max(dots)
+    # Get the index of the closest match
+    max_index = dots.index(max_val)
+    # Save the index of the greatest dot
+    maxes.append(max_index)
+    # Save the greatest dot
+    vals.append(max_val)
+    # Allow the next max to become the new max by removing the current max
+    dots[max_index] = 0
+
+  # Print the top 3 possible shifts, as well as the least likely shift
+  print ' > '.join(['%s(%.4f)' % (pair[0], pair[1]) for pair in zip([chr(letter + 65) for letter in maxes[0:3]], vals[0:3])]) + ' ... %s(%.4f)' % (chr(maxes[25] + 65), vals[25])
+    
   # Return the shift with the max dot product, which is likely the correct shift
-  return dots.index(max(dots))
+  return maxes[0]
 
 """
 Decrypts ciphertext that was encrypted with a Vigenere Cipher
